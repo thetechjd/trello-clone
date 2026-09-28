@@ -101,6 +101,7 @@ export class CardsService {
 
     const data: Record<string, unknown> = { ...body };
     if (body.dueAt !== undefined) data.dueAt = body.dueAt ? new Date(body.dueAt) : null;
+    if (body.description !== undefined) data.description = body.description!.trim();
 
     const { updated, activity } = await this.prisma.$transaction(async (tx) => {
       const row = await tx.card.update({ where: { id: cardId }, data });

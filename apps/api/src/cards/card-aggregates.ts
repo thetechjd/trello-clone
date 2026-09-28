@@ -12,6 +12,8 @@ export async function loadCardAggregates(
 ): Promise<Map<string, CardAggregates>> {
   const result = new Map<string, CardAggregates>();
   if (!cardIds.length) return result;
+  // Cards are read in pages; the badge queries below take the whole set.
+  const page = cardIds.slice(0, 50);
 
   const [labels, members, comments, attachments, checklists] = await Promise.all([
     tx.cardLabel.findMany({ where: { cardId: { in: cardIds } } }),
@@ -40,7 +42,7 @@ export async function loadCardAggregates(
     return entry;
   };
 
-  cardIds.forEach(ensure);
+  page.forEach(ensure);
   labels.forEach((row) => ensure(row.cardId).labelIds!.push(row.labelId));
   members.forEach((row) => ensure(row.cardId).memberIds!.push(row.userId));
   comments.forEach((row: any) => {
@@ -50,7 +52,7 @@ export async function loadCardAggregates(
     ensure(row.cardId).attachmentCount = row._count;
   });
   checklists.forEach((row) => {
-    const entry = ensure(row.cardId);
+    const entry = result.get(row.cardId)!;
     entry.checklistTotal! += row.items.length;
     entry.checklistDone! += row.items.filter((item) => item.completed).length;
   });

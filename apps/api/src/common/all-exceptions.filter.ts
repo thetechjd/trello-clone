@@ -10,6 +10,7 @@ import { Prisma } from '@prisma/client';
 import { ERROR_CODES, type ApiErrorBody, type ErrorCode } from '@trello-clone/shared';
 import type { Response } from 'express';
 import { AppError } from './app-error';
+import { SubZeroNotifier } from './sub-zero.notifier';
 
 /** Maps every thrown error to the locked `{ error: { code, message } }` shape. */
 @Catch()
@@ -20,7 +21,23 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (host.getType() !== 'http') throw exception;
 
     const { code, message, status } = toApiError(exception, this.logger);
-    const response = host.switchToHttp().getResponse<Response>();
+    const http = host.switchToHttp();
+    const response = http.getResponse<Response>();
+
+    // Only what nobody asked for. A 404 or a rejected login is the API working;
+    // reporting those would bury the failures that matter.
+    if (status >= 500) {
+      const request = http.getRequest<Request & { user?: { sub?: string; id?: string } }>();
+      const route = (request as any)?.route?.path ?? (request as any)?.url ?? 'unknown route';
+      const method = (request as any)?.method ?? 'UNKNOWN';
+      SubZeroNotifier.report({
+        subject: `${method} ${route} — ${summarize(exception)}`,
+        method,
+        path: (request as any)?.url ?? route,
+        error: exception,
+        userId: (request as any)?.user?.sub ?? (request as any)?.user?.id,
+      });
+    }
     const body: ApiErrorBody = { error: { code, message } };
     response.status(status).json(body);
   }
@@ -65,6 +82,18 @@ export function toApiError(
     message: 'Something went wrong. Try again.',
     status: HttpStatus.INTERNAL_SERVER_ERROR,
   };
+}
+
+/** A one-line handle for the incident subject, so one fault is one ticket. */
+function summarize(exception: unknown): string {
+  if (exception instanceof Prisma.PrismaClientKnownRequestError) {
+    return `Prisma ${exception.code}`;
+  }
+  if (exception instanceof Error) {
+    const first = exception.message.split('\n')[0].trim();
+    return first.length > 90 ? `${first.slice(0, 87)}...` : first || exception.name;
+  }
+  return 'Unhandled error';
 }
 
 function statusToCode(status: number): ErrorCode {

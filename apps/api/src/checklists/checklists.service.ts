@@ -94,7 +94,7 @@ export class ChecklistsService {
         data: {
           checklistId: checklist.id,
           text: body.text,
-          position: positionAtEnd(last?.position ?? null),
+          position: positionAtEnd(last!.position),
         },
       });
     });
