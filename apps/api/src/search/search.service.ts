@@ -15,6 +15,7 @@ type ParsedQuery = {
 
 const DUE_WINDOWS: Record<string, number> = {
   day: 24 * 60 * 60 * 1000,
+  week: 7 * 24 * 60 * 60 * 1000,
   month: 30 * 24 * 60 * 60 * 1000,
 };
 
@@ -23,7 +24,7 @@ export class SearchService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly permissions: PermissionsService,
-  ) {}
+  ) { }
 
   /** Board scoped card search. Filters combine; text uses the tsvector index. */
   async searchBoard(boardId: string, userId: string, query: BoardSearchQuery) {
