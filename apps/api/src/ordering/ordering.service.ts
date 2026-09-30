@@ -78,7 +78,7 @@ export class OrderingService {
     }
     // Both neighbours are absent: an empty scope, or a fully stale request.
     // Appending to the end is the stable interpretation.
-    return positionAtEnd(scope.length ? scope[scope.length].position : null);
+    return positionAtEnd(scope.length ? scope[scope.length-1].position : null);
   }
 
   /** Key for a brand new item appended to the end of a scope. */
